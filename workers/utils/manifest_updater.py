@@ -19,6 +19,7 @@ from server.core.patch_engine import (
     create_status_progress_patch,
     normalize_json_pointer,
 )
+from server.core.reaper import clear_task_heartbeat, record_task_heartbeat
 from server.models.job import JobQueueRecord, JobStage, JobStatus
 from server.models.project import Project
 
@@ -165,6 +166,9 @@ async def safe_worker_execution(
     db.add(job_record)
     await db.flush()
 
+    # Record worker heartbeat
+    await record_task_heartbeat(redis_client, arq_job_id)
+
     # Mark node generating
     await update_node_status(
         project_id=project_id,
@@ -198,3 +202,5 @@ async def safe_worker_execution(
             redis_client=redis_client,
         )
         raise
+    finally:
+        await clear_task_heartbeat(redis_client, arq_job_id)

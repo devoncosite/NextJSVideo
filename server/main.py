@@ -10,6 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from server.core.config import get_settings
 from server.core.database import check_database_health
+from server.core.security_middleware import RateLimiterMiddleware, SecurityHeadersMiddleware
 from server.routers.context import router as context_router
 from server.routers.pipeline import router as pipeline_router
 from server.routers.projects import router as projects_router
@@ -30,6 +31,10 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan,
 )
+
+# Production Security & Rate Limiting Middleware
+app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(RateLimiterMiddleware, default_limit=300, generation_limit=50)
 
 # CORS Middleware
 app.add_middleware(
