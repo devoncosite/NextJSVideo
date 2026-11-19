@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
+import time
 from typing import AsyncGenerator
 
 from fastapi import FastAPI
@@ -11,6 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from server.core.config import get_settings
 from server.core.database import check_database_health
 from server.core.security_middleware import RateLimiterMiddleware, SecurityHeadersMiddleware
+from server.core.telemetry import record_request_metric, router as telemetry_router
 from server.routers.context import router as context_router
 from server.routers.pipeline import router as pipeline_router
 from server.routers.projects import router as projects_router
@@ -50,6 +52,16 @@ app.include_router(context_router)
 app.include_router(projects_router)
 app.include_router(pipeline_router)
 app.include_router(ws_router)
+app.include_router(telemetry_router)
+
+
+@app.middleware("http")
+async def metrics_collection_middleware(request, call_next):
+    start = time.time()
+    response = await call_next(request)
+    duration = time.time() - start
+    record_request_metric(request.method, request.url.path, response.status_code, duration)
+    return response
 
 
 @app.get("/health")

@@ -1,0 +1,163 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: cineforge_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-studio}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-studio_secret_pw}
+      POSTGRES_DB: ${POSTGRES_DB:-studio_db}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-studio} -d ${POSTGRES_DB:-studio_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 2G
+
+  redis:
+    image: redis:7.2-alpine
+    container_name: cineforge_redis
+    restart: always
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "512mb", "--maxmemory-policy", "noeviction"]
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
+
+  minio:
+    image: minio/minio:latest
+    container_name: cineforge_minio
+    restart: always
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY:-minioadmin_secret}
+    volumes:
+      - miniodata:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  minio-init:
+    image: minio/mc:latest
+    container_name: cineforge_minio_init
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY:-minioadmin_secret}
+      S3_BUCKET_NAME: ${S3_BUCKET_NAME:-studio-assets}
+    volumes:
+      - ./infra/docker/minio-init.sh:/minio-init.sh:ro
+    entrypoint: ["/bin/sh", "/minio-init.sh"]
+
+  server:
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile.server
+    container_name: cineforge_server
+    restart: always
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-studio}:${POSTGRES_PASSWORD:-studio_secret_pw}@postgres:5432/${POSTGRES_DB:-studio_db}
+      REDIS_URL: redis://redis:6379/0
+      S3_ENDPOINT_URL: http://minio:9000
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:-minioadmin}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:-minioadmin_secret}
+      S3_BUCKET_NAME: ${S3_BUCKET_NAME:-studio-assets}
+      JWT_SECRET: ${JWT_SECRET:-supersecretjwtkey_min_32_characters_long_12345}
+      ENVIRONMENT: production
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 4G
+
+  worker:
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile.worker
+    container_name: cineforge_worker
+    restart: always
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-studio}:${POSTGRES_PASSWORD:-studio_secret_pw}@postgres:5432/${POSTGRES_DB:-studio_db}
+      REDIS_URL: redis://redis:6379/0
+      S3_ENDPOINT_URL: http://minio:9000
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:-minioadmin}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:-minioadmin_secret}
+      S3_BUCKET_NAME: ${S3_BUCKET_NAME:-studio-assets}
+      ENVIRONMENT: production
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: "4.0"
+          memory: 8G
+
+  web:
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile.web
+    container_name: cineforge_web
+    restart: always
+    environment:
+      STUDIO_BACKEND_URL: http://server:8008
+      STUDIO_WS_URL: ws://server:8008
+      NEXT_TELEMETRY_DISABLED: "1"
+    depends_on:
+      - server
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 2G
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: cineforge_nginx
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./infra/nginx/nginx.prod.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - web
+      - server
+      - minio
+
+volumes:
+  pgdata:
+  redisdata:
+  miniodata:
