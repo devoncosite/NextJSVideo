@@ -2,12 +2,22 @@
   "name": "ai-video-studio-monorepo",
   "version": "1.0.0",
   "private": true,
+  "workspaces": [
+    "web",
+    "shared",
+    "shared-types"
+  ],
   "scripts": {
-    "dev:web": "pnpm --filter web dev",
-    "build:web": "pnpm --filter web build",
-    "start:web": "pnpm --filter web start",
-    "lint:web": "pnpm --filter web lint",
-    "type-check": "pnpm --filter web type-check"
+    "dev": "npm run dev --workspace=web",
+    "build": "npm run build --workspace=web",
+    "start": "npm run start --workspace=web",
+    "lint": "npm run lint --workspace=web",
+    "dev:web": "npm run dev --workspace=web",
+    "build:web": "npm run build --workspace=web",
+    "start:web": "npm run start --workspace=web",
+    "lint:web": "npm run lint --workspace=web",
+    "type-check": "npm run type-check --workspace=web",
+    "sync:schemas": "python3 scripts/sync_schemas.py"
   },
   "devDependencies": {
     "prettier": "^3.4.2"

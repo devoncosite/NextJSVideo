@@ -1,0 +1,5 @@
+{
+  "name": "CineForge Enterprise AI Video Engine",
+  "description": "Enterprise AI Video Production Engine merging AI-Content-Studio and ContentMachine with PostgreSQL JSONB Master Manifest, Content-Addressed Multimodal Context Ingestion, and S3/R2 Asset Mirroring.",
+  "requestFramePermissions": []
+}
