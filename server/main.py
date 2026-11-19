@@ -11,6 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from server.core.config import get_settings
 from server.core.database import check_database_health
 from server.routers.context import router as context_router
+from server.routers.ws import router as ws_router
 
 settings = get_settings()
 
@@ -39,6 +40,7 @@ app.add_middleware(
 
 # Mount API Routers
 app.include_router(context_router)
+app.include_router(ws_router)
 
 
 @app.get("/health")
