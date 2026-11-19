@@ -8,7 +8,7 @@ import mimetypes
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
-from typing import AsyncIterator, Callable, Dict, Optional
+from typing import AsyncIterator, Callable, Dict, Optional, Union
 
 import aioboto3
 import httpx
@@ -192,6 +192,89 @@ class StorageService:
             size_bytes=total_bytes,
             content_type=content_type,
         )
+
+    async def upload_bytes(
+        self,
+        data: bytes,
+        project_id: str,
+        subfolder: str,
+        extension: str,
+        sha256_hex: Optional[str] = None,
+        content_type: Optional[str] = None,
+    ) -> PersistedAssetResult:
+        """Persist in-memory bytes into S3/R2 with content-addressed pathing."""
+        clean_ext = extension.lstrip(".").lower()
+        computed_sha = sha256_hex or hashlib.sha256(data).hexdigest()
+        resolved_content_type = content_type or self.resolve_content_type(clean_ext)
+        s3_key = self.build_s3_key(project_id, subfolder, computed_sha, clean_ext)
+        object_key = s3_key.lstrip("/")
+
+        with tempfile.NamedTemporaryFile(prefix="context_upload_", suffix=f".{clean_ext}", delete=True) as tmp_file:
+            tmp_path = Path(tmp_file.name)
+            tmp_path.write_bytes(data)
+            await self._upload_file_to_s3(
+                file_path=tmp_path,
+                bucket=self.settings.S3_BUCKET_NAME,
+                object_key=object_key,
+                content_type=resolved_content_type,
+                sha256_hex=computed_sha,
+            )
+
+        public_url = self.build_public_url(s3_key)
+        result = PersistedAssetResult(
+            public_url=public_url,
+            s3_key=s3_key,
+            sha256=computed_sha,
+            size_bytes=len(data),
+            content_type=resolved_content_type,
+        )
+        self._last_persisted = result
+        return result
+
+    async def upload_file(
+        self,
+        file_path: Union[str, Path],
+        project_id: str,
+        subfolder: str,
+        extension: Optional[str] = None,
+        sha256_hex: Optional[str] = None,
+        content_type: Optional[str] = None,
+    ) -> PersistedAssetResult:
+        """Persist a local file into S3/R2 with content-addressed pathing."""
+        path = Path(file_path)
+        clean_ext = (extension or path.suffix).lstrip(".").lower()
+        resolved_content_type = content_type or self.resolve_content_type(clean_ext)
+
+        if not sha256_hex:
+            hasher = hashlib.sha256()
+            with path.open("rb") as f:
+                while chunk := f.read(self.CHUNK_SIZE):
+                    hasher.update(chunk)
+            computed_sha = hasher.hexdigest()
+        else:
+            computed_sha = sha256_hex
+
+        s3_key = self.build_s3_key(project_id, subfolder, computed_sha, clean_ext)
+        object_key = s3_key.lstrip("/")
+
+        await self._upload_file_to_s3(
+            file_path=path,
+            bucket=self.settings.S3_BUCKET_NAME,
+            object_key=object_key,
+            content_type=resolved_content_type,
+            sha256_hex=computed_sha,
+        )
+
+        public_url = self.build_public_url(s3_key)
+        result = PersistedAssetResult(
+            public_url=public_url,
+            s3_key=s3_key,
+            sha256=computed_sha,
+            size_bytes=path.stat().st_size,
+            content_type=resolved_content_type,
+        )
+        self._last_persisted = result
+        return result
 
     async def _upload_file_to_s3(
         self,

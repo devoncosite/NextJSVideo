@@ -172,6 +172,13 @@ def test_engine_pool_parameters_configured_for_postgres() -> None:
 async def test_concurrent_session_checkout_and_select_1() -> None:
     """TASK-1.1: Verify concurrent async session checkouts executing SELECT 1."""
     test_engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+
+    from sqlalchemy import event
+    @event.listens_for(test_engine.sync_engine, "connect")
+    def set_sqlite_pragma(dbapi_connection, connection_record):
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.close()
     results = await asyncio.gather(*(check_database_health(test_engine) for _ in range(5)))
     assert all(results)
     await test_engine.dispose()
@@ -181,6 +188,13 @@ async def test_concurrent_session_checkout_and_select_1() -> None:
 async def test_relational_models_crud_and_cascade_delete() -> None:
     """TASK-1.2: Verify User, Project (JSONB manifest), ContextArtifact, and JobQueueRecord constraints and cascades."""
     test_engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+
+    from sqlalchemy import event
+    @event.listens_for(test_engine.sync_engine, "connect")
+    def set_sqlite_pragma(dbapi_connection, connection_record):
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.close()
     async with test_engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
@@ -188,7 +202,8 @@ async def test_relational_models_crud_and_cascade_delete() -> None:
 
     async with session_factory() as session:
         # Enable SQLite foreign keys for cascade testing
-        await session.execute(select(1))
+        from sqlalchemy import text
+        await session.execute(text("PRAGMA foreign_keys = ON"))
         user = User(
             email="director@cineforge.ai",
             hashed_password="$2b$12$hashedpasswordvalue",
