@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import enum
 import uuid
-from typing import TYPE_CHECKING, Any, Dict, List
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 from sqlalchemy import Enum, ForeignKey, Index, Integer, String, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -54,6 +54,11 @@ class Project(Base, TimestampMixin):
     title: Mapped[str] = mapped_column(
         String(255),
         nullable=False,
+    )
+    description: Mapped[Optional[str]] = mapped_column(
+        String(1024),
+        nullable=True,
+        default=None,
     )
     format: Mapped[str] = mapped_column(
         String(64),

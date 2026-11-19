@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from server.core.config import Settings, get_settings
-from server.core.storage import StorageService
+from server.core.storage import StorageService, get_storage_service
 from server.providers.base import AudioResult, TTSProvider
 from server.providers.http_client import ResilientHTTPClient
 
@@ -22,7 +22,7 @@ class ElevenLabsTTSProvider(TTSProvider):
 
     def __init__(self, settings: Optional[Settings] = None, storage: Optional[StorageService] = None) -> None:
         self.settings = settings or get_settings()
-        self.storage = storage or StorageService(settings=self.settings)
+        self.storage = storage or get_storage_service()
         self.http_client = ResilientHTTPClient(
             base_url="https://api.elevenlabs.io",
             headers={"xi-api-key": self.settings.ELEVENLABS_API_KEY or ""},
@@ -120,7 +120,7 @@ class MockTTSProvider(TTSProvider):
 
     def __init__(self, settings: Optional[Settings] = None, storage: Optional[StorageService] = None) -> None:
         self.settings = settings or get_settings()
-        self.storage = storage or StorageService(settings=self.settings)
+        self.storage = storage or get_storage_service()
 
     def _generate_synthetic_mp3(self, output_path: Path, duration_sec: float) -> None:
         """Create a valid AAC/MP3 audio track."""

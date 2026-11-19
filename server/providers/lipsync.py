@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 
 from server.core.config import Settings, get_settings
-from server.core.storage import StorageService
+from server.core.storage import StorageService, get_storage_service
 from server.providers.base import LipSyncProvider, LipSyncResult
 from server.providers.http_client import ResilientHTTPClient
 
@@ -22,7 +22,7 @@ class SyncLabsProvider(LipSyncProvider):
 
     def __init__(self, settings: Optional[Settings] = None, storage: Optional[StorageService] = None) -> None:
         self.settings = settings or get_settings()
-        self.storage = storage or StorageService(settings=self.settings)
+        self.storage = storage or get_storage_service()
         self.http_client = ResilientHTTPClient(
             base_url="https://api.synclabs.so",
             headers={"x-api-key": self.settings.SYNCLABS_API_KEY or ""},
@@ -98,7 +98,7 @@ class MockLipSyncProvider(LipSyncProvider):
 
     def __init__(self, settings: Optional[Settings] = None, storage: Optional[StorageService] = None) -> None:
         self.settings = settings or get_settings()
-        self.storage = storage or StorageService(settings=self.settings)
+        self.storage = storage or get_storage_service()
 
     async def apply_lip_sync(
         self,

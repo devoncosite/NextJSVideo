@@ -64,6 +64,9 @@ async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
             await session.close()
 
 
+get_db = get_db_session
+
+
 async def check_database_health(custom_engine: AsyncEngine | None = None) -> bool:
     """Execute SELECT 1 against the configured async engine."""
     target_engine = custom_engine or engine

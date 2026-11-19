@@ -18,7 +18,7 @@ from server.core.ingestion.hasher import StreamingHasher, compute_sha256_bytes
 from server.core.ingestion.media_ingester import MediaIngester
 from server.core.ingestion.summarizer import ContextSummarizer
 from server.core.ingestion.web_crawler import SSRFValidationError, WebCrawler
-from server.core.storage import StorageService
+from server.core.storage import StorageService, get_storage_service
 from server.models.context_artifact import ContextArtifact, ContextSourceType
 from server.models.project import Project, ProjectStatus
 from server.models.user import User

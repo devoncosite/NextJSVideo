@@ -8,7 +8,7 @@ import logging
 from typing import Any, Dict, List, Optional
 
 from server.core.config import Settings, get_settings
-from server.core.storage import StorageService
+from server.core.storage import StorageService, get_storage_service
 from server.providers.base import ImageGenProvider, ImageResult
 from server.providers.http_client import ResilientHTTPClient
 
@@ -38,7 +38,7 @@ class FalImageProvider(ImageGenProvider):
 
     def __init__(self, settings: Optional[Settings] = None, storage: Optional[StorageService] = None) -> None:
         self.settings = settings or get_settings()
-        self.storage = storage or StorageService(settings=self.settings)
+        self.storage = storage or get_storage_service()
         self.http_client = ResilientHTTPClient(
             base_url="https://queue.fal.run",
             headers={"Authorization": f"Key {self.settings.FAL_KEY}"},
@@ -123,7 +123,7 @@ class ReplicateImageProvider(ImageGenProvider):
 
     def __init__(self, settings: Optional[Settings] = None, storage: Optional[StorageService] = None) -> None:
         self.settings = settings or get_settings()
-        self.storage = storage or StorageService(settings=self.settings)
+        self.storage = storage or get_storage_service()
 
     async def generate_image(
         self,
@@ -201,7 +201,7 @@ class MockImageProvider(ImageGenProvider):
 
     def __init__(self, settings: Optional[Settings] = None, storage: Optional[StorageService] = None) -> None:
         self.settings = settings or get_settings()
-        self.storage = storage or StorageService(settings=self.settings)
+        self.storage = storage or get_storage_service()
 
     @staticmethod
     def _create_minimal_png(width: int = 1920, height: int = 1080) -> bytes:

@@ -128,3 +128,7 @@ def apply_json_patches(
                 del curr[str(last_token)]
 
     return target
+
+
+apply_rfc6902_patches = apply_json_patches
+

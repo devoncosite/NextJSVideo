@@ -15,6 +15,13 @@ from server.core.config import get_settings
 from server.core.database import create_db_engine
 from server.core.storage import StorageService
 from server.models.job import JobStage
+from server.pipeline.stage1_planner import select_pitch_and_expand_manifest
+from server.pipeline.stage2_consistencies import generate_consistencies_batch
+from server.pipeline.stage3_keyframes import generate_keyframes_batch
+from server.pipeline.stage4_audio import generate_audio_batch
+from server.pipeline.stage5_video import generate_video_batch
+from server.pipeline.stage6_assembly import assemble_timeline_pipeline
+from server.pipeline.stage7_export import export_project_zip_bundle
 from workers.config import (
     DEFAULT_JOB_TIMEOUT_SECONDS,
     KEEP_RESULT_SECONDS,
@@ -87,17 +94,14 @@ async def task_planner(
             redis_client=redis_client,
         ):
             logger.info("Executing planner for project %s (prompt: %s)", project_id, user_prompt[:40])
-            # Simulate structured planning step (expanded in Phase 6)
-            await asyncio.sleep(0.1)
-
-            await update_manifest_node(
+            await select_pitch_and_expand_manifest(
                 project_id=project_id,
-                path="/globalStyle/visualStylePrompt",
-                value=f"35mm film aesthetic: {user_prompt[:60]}",
+                pitch_index=1,
+                user_prompt=user_prompt,
+                format_type=format_type,
                 db=db,
-                redis_client=redis_client,
+                aspect_ratio=aspect_ratio,
             )
-
             return {"project_id": project_id, "status": "completed"}
 
 
@@ -121,11 +125,12 @@ async def task_consistency_batch(
             db=db,
             redis_client=redis_client,
         ):
-            semaphore = provider_semaphores.get("gemini", asyncio.Semaphore(10))
-            async with semaphore:
-                logger.info("Generating consistency batch for project %s", project_id)
-                await asyncio.sleep(0.1)
-
+            logger.info("Generating consistency batch for project %s", project_id)
+            await generate_consistencies_batch(
+                project_id=project_id,
+                db=db,
+                target_ids=target_ids,
+            )
             return {"project_id": project_id, "status": "completed"}
 
 
@@ -150,7 +155,11 @@ async def task_keyframe_batch(
             redis_client=redis_client,
         ):
             logger.info("Generating keyframes batch for project %s", project_id)
-            await asyncio.sleep(0.1)
+            await generate_keyframes_batch(
+                project_id=project_id,
+                db=db,
+                scene_ids=scene_ids,
+            )
             return {"project_id": project_id, "status": "completed"}
 
 
@@ -175,7 +184,11 @@ async def task_audio_merge(
             redis_client=redis_client,
         ):
             logger.info("Merging audio for scene %s in project %s", scene_id, project_id)
-            await asyncio.sleep(0.1)
+            await generate_audio_batch(
+                project_id=project_id,
+                db=db,
+                scene_ids=[scene_id] if scene_id else None,
+            )
             return {"project_id": project_id, "scene_id": scene_id, "status": "completed"}
 
 
@@ -199,10 +212,12 @@ async def task_video_gen(
             db=db,
             redis_client=redis_client,
         ):
-            semaphore = provider_semaphores.get("replicate", asyncio.Semaphore(5))
-            async with semaphore:
-                logger.info("Generating video for scene %s in project %s", scene_id, project_id)
-                await asyncio.sleep(0.1)
+            logger.info("Generating video for scene %s in project %s", scene_id, project_id)
+            await generate_video_batch(
+                project_id=project_id,
+                db=db,
+                scene_ids=[scene_id] if scene_id else None,
+            )
             return {"project_id": project_id, "scene_id": scene_id, "status": "completed"}
 
 
@@ -228,7 +243,9 @@ async def task_timeline_assembly(
             redis_client=redis_client,
         ):
             logger.info("Assembling timeline for project %s (burn_captions=%s)", project_id, burn_captions)
-            await asyncio.sleep(0.1)
+            await assemble_timeline_pipeline(project_id=project_id, db=db)
+            if export_zip:
+                await export_project_zip_bundle(project_id=project_id, db=db)
             return {"project_id": project_id, "status": "completed"}
 
 

@@ -76,6 +76,14 @@ class Settings(BaseSettings):
     ELEVENLABS_API_KEY: Optional[str] = None
     SYNCLABS_API_KEY: Optional[str] = None
 
+    # AI Provider Defaults
+    LLM_PROVIDER: Optional[str] = "gemini"
+    IMAGE_GEN_PROVIDER: Optional[str] = "fal"
+    VIDEO_GEN_PROVIDER: Optional[str] = "kling"
+    TTS_PROVIDER: Optional[str] = "elevenlabs"
+    LIP_SYNC_PROVIDER: Optional[str] = "synclabs"
+    DEFAULT_VOICE_ID: Optional[str] = "21m00Tcm4TlvDq8ikWAM"
+
     @field_validator("DATABASE_URL")
     @classmethod
     def validate_database_url(cls, v: str) -> str:
