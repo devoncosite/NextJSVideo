@@ -84,6 +84,8 @@ async def update_manifest_patches(
     updated_manifest = apply_json_patches(current_manifest, patches, in_place=False)
 
     project.version += 1
+    if isinstance(updated_manifest, dict):
+        updated_manifest["version"] = project.version
     project.manifest = updated_manifest
     await db.commit()
     await db.refresh(project)
@@ -147,7 +149,7 @@ async def update_node_status(
 @asynccontextmanager
 async def safe_worker_execution(
     project_id: str,
-    base_path: str,
+    base_path: Optional[str],
     stage: JobStage,
     target_id: str,
     arq_job_id: str,
@@ -169,15 +171,23 @@ async def safe_worker_execution(
     # Record worker heartbeat
     await record_task_heartbeat(redis_client, arq_job_id)
 
-    # Mark node generating
-    await update_node_status(
-        project_id=project_id,
-        base_path=base_path,
-        status="generating",
-        progress=10,
-        db=db,
-        redis_client=redis_client,
+    has_target_node = bool(
+        base_path and base_path.rstrip("/") not in ("", "/scenes", "/consistencies")
     )
+
+    # Mark node generating if targeting a concrete leaf status node
+    if has_target_node and base_path:
+        try:
+            await update_node_status(
+                project_id=project_id,
+                base_path=base_path,
+                status="generating",
+                progress=10,
+                db=db,
+                redis_client=redis_client,
+            )
+        except (TypeError, KeyError, IndexError) as patch_exc:
+            logger.debug("Skipping initial node status update for %s: %s", base_path, patch_exc)
 
     try:
         yield
@@ -192,15 +202,19 @@ async def safe_worker_execution(
         await db.commit()
 
         # Mark node failed in manifest and broadcast failure patch
-        await update_node_status(
-            project_id=project_id,
-            base_path=base_path,
-            status="failed",
-            progress=0,
-            error=str(exc),
-            db=db,
-            redis_client=redis_client,
-        )
+        if has_target_node and base_path:
+            try:
+                await update_node_status(
+                    project_id=project_id,
+                    base_path=base_path,
+                    status="failed",
+                    progress=0,
+                    error=str(exc),
+                    db=db,
+                    redis_client=redis_client,
+                )
+            except (TypeError, KeyError, IndexError) as patch_exc:
+                logger.debug("Skipping failure node status update for %s: %s", base_path, patch_exc)
         raise
     finally:
         await clear_task_heartbeat(redis_client, arq_job_id)

@@ -69,25 +69,41 @@ export const useStudioStore = create<StudioState>((set, get) => ({
   },
 
   updatePrompt: (path: string, prompt: string) => {
-    const { applyPatchDelta, version } = get();
-    applyPatchDelta(version + 1, [
+    const { applyPatchDelta, version, manifest } = get();
+    const patches: PatchOperation[] = [
       {
         op: 'replace',
         path,
         value: prompt,
       },
-    ]);
+    ];
+    applyPatchDelta(version + 1, patches);
+    if (manifest?.projectId && typeof window !== 'undefined' && typeof fetch === 'function') {
+      fetch(`/api/v1/projects/${manifest.projectId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ patches }),
+      }).catch(() => {});
+    }
   },
 
   selectVariant: (path: string, variantUrl: string) => {
-    const { applyPatchDelta, version } = get();
-    applyPatchDelta(version + 1, [
+    const { applyPatchDelta, version, manifest } = get();
+    const patches: PatchOperation[] = [
       {
         op: 'replace',
         path,
         value: variantUrl,
       },
-    ]);
+    ];
+    applyPatchDelta(version + 1, patches);
+    if (manifest?.projectId && typeof window !== 'undefined' && typeof fetch === 'function') {
+      fetch(`/api/v1/projects/${manifest.projectId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ patches }),
+      }).catch(() => {});
+    }
   },
 
   fetchManifest: async (projectId: string) => {
@@ -100,7 +116,10 @@ export const useStudioStore = create<StudioState>((set, get) => ({
       const data = await res.json();
       if (data.manifest) {
         get().setManifest(data.manifest);
-        set({ connectionState: 'connected' });
+        set({
+          version: data.version ?? data.manifest.version ?? 1,
+          connectionState: 'connected',
+        });
       }
     } catch (err: any) {
       console.error('Error fetching manifest:', err);

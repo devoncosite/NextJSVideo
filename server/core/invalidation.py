@@ -98,6 +98,10 @@ def compute_downstream_invalidations(
     if aud_match:
         s_idx = int(aud_match.group(1))
         if 0 <= s_idx < len(scenes):
+            patches.extend([
+                create_replace_patch(f"/scenes/{s_idx}/audio/status", "idle"),
+                create_replace_patch(f"/scenes/{s_idx}/audio/mergedSceneAudioUrl", None),
+            ])
             scene = scenes[s_idx]
             requires_lipsync = scene.get("video", {}).get("requiresLipSync", False)
             if requires_lipsync:

@@ -140,14 +140,9 @@ async def select_pitch_and_expand_manifest(
         obj["progressPercent"] = 0
         obj["selectedAssetUrl"] = None
 
-    project.manifest = manifest_dict
-    project.version += 1
     project.status = ProjectStatus.DRAFT
-    await db.commit()
-    await db.refresh(project)
-
-    # Publish full initial manifest event
-    await update_manifest_node(
+    # Update manifest and publish initial manifest delta
+    project = await update_manifest_node(
         project_id=project_id,
         path="/",
         value=manifest_dict,

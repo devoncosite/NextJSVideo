@@ -172,13 +172,14 @@ async def task_audio_merge(
     session_factory = ctx.get("session_factory")
     redis_client = ctx.get("redis_client")
     job_id = ctx.get("job_id", f"audio_{scene_id}")
+    target_scene_ids = [scene_id] if scene_id and scene_id != "all" else None
 
     async with session_factory() as db:
         async with safe_worker_execution(
             project_id=project_id,
-            base_path=f"/scenes/0/audio",
+            base_path=None,
             stage=JobStage.AUDIO,
-            target_id=scene_id,
+            target_id=scene_id or "all",
             arq_job_id=job_id,
             db=db,
             redis_client=redis_client,
@@ -187,7 +188,7 @@ async def task_audio_merge(
             await generate_audio_batch(
                 project_id=project_id,
                 db=db,
-                scene_ids=[scene_id] if scene_id else None,
+                scene_ids=target_scene_ids,
             )
             return {"project_id": project_id, "scene_id": scene_id, "status": "completed"}
 
@@ -201,13 +202,14 @@ async def task_video_gen(
     session_factory = ctx.get("session_factory")
     redis_client = ctx.get("redis_client")
     job_id = ctx.get("job_id", f"video_{scene_id}")
+    target_scene_ids = [scene_id] if scene_id and scene_id != "all" else None
 
     async with session_factory() as db:
         async with safe_worker_execution(
             project_id=project_id,
-            base_path=f"/scenes/0/video",
+            base_path=None,
             stage=JobStage.VIDEO,
-            target_id=scene_id,
+            target_id=scene_id or "all",
             arq_job_id=job_id,
             db=db,
             redis_client=redis_client,
@@ -216,7 +218,7 @@ async def task_video_gen(
             await generate_video_batch(
                 project_id=project_id,
                 db=db,
-                scene_ids=[scene_id] if scene_id else None,
+                scene_ids=target_scene_ids,
             )
             return {"project_id": project_id, "scene_id": scene_id, "status": "completed"}
 

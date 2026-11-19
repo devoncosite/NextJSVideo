@@ -308,8 +308,11 @@ class StorageService:
 
         # Fallback synthetic media for test/offline environments
         ext = target_path.suffix.lower()
-        if ext in (".m4a", ".mp3", ".wav"):
+        if ext == ".m4a":
             cmd = ["ffmpeg", "-y", "-f", "lavfi", "-i", "sine=frequency=440:duration=1.0", "-c:a", "aac", str(target_path)]
+            subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
+        elif ext in (".mp3", ".wav"):
+            cmd = ["ffmpeg", "-y", "-f", "lavfi", "-i", "sine=frequency=440:duration=1.0", str(target_path)]
             subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
         elif ext in (".mp4", ".mov"):
             cmd = [
@@ -318,8 +321,10 @@ class StorageService:
                 "-c:v", "libx264", "-c:a", "aac", str(target_path)
             ]
             subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
-        elif ext in (".png", ".jpg", ".jpeg"):
+        elif ext in (".png", ".jpg", ".jpeg", ".webp"):
             target_path.write_bytes(b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15c4\x00\x00\x00\nIDATx\x9cc\x00\x01\x00\x00\x05\x00\x01\r\n-\xb4\x00\x00\x00\x00IEND\xaeB`\x82")
+        else:
+            target_path.write_bytes(b"")
 
         return target_path
 

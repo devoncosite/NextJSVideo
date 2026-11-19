@@ -126,7 +126,8 @@ export default function Stage1PlannerPage() {
               className="w-full p-3 bg-zinc-900 border border-zinc-700 rounded-xl text-sm text-zinc-200 focus:outline-none focus:border-emerald-500"
             >
               <option value="cinematic_drama">Cinematic Drama (16:9)</option>
-              <option value="educational_explainer">Educational Explainer (16:9)</option>
+              <option value="documentary">Documentary (16:9)</option>
+              <option value="explainer">Educational Explainer (16:9)</option>
               <option value="vertical_short">Vertical Short (9:16)</option>
               <option value="podcast_clip">Podcast Clip (16:9)</option>
             </select>

@@ -22,6 +22,7 @@ export function ExportHubModal({
 }: ExportHubModalProps) {
   const [isExporting, setIsExporting] = useState(false);
   const [activeZipUrl, setActiveZipUrl] = useState<string | null>(bundleZipUrl || null);
+  const resolvedZipUrl = activeZipUrl || bundleZipUrl || null;
 
   if (!isOpen) return null;
 
@@ -137,7 +138,7 @@ export function ExportHubModal({
                   Full Project Production Archive (.zip)
                 </span>
               </div>
-              {activeZipUrl && (
+              {resolvedZipUrl && (
                 <span className="text-[11px] text-emerald-400 font-semibold flex items-center gap-1">
                   <Check className="w-3.5 h-3.5" /> Archive Ready
                 </span>
@@ -168,9 +169,9 @@ export function ExportHubModal({
                 )}
               </button>
 
-              {activeZipUrl && (
+              {resolvedZipUrl && (
                 <a
-                  href={activeZipUrl}
+                  href={resolvedZipUrl}
                   download={`cineforge_${projectId}.zip`}
                   className="px-5 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-emerald-300 font-semibold text-xs flex items-center gap-2 transition-colors border border-zinc-700"
                 >

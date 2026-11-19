@@ -164,8 +164,10 @@ async def patch_project(
     if req.patches:
         manifest = project.manifest or {}
         updated_manifest = apply_json_patches(manifest, req.patches)
-        project.manifest = updated_manifest
         project.version += 1
+        if isinstance(updated_manifest, dict):
+            updated_manifest["version"] = project.version
+        project.manifest = updated_manifest
 
     await db.commit()
     await db.refresh(project)

@@ -75,13 +75,22 @@ async def export_project_zip_bundle(
                 ts = scene.get("timestamp", {})
                 duration = float(ts.get("endSec", 5.0) - ts.get("startSec", 0.0))
                 aud = scene.get("audio", {})
+                vo = aud.get("voiceover", {})
+                if vo and vo.get("enabled") and vo.get("text"):
+                    vo_start_off = float(vo.get("startOffsetSec", 0.0))
+                    vo_end_off = float(vo.get("endOffsetSec", vo_start_off + 2.5))
+                    dialogue_events.append({
+                        "start": cumulative_time + vo_start_off,
+                        "end": cumulative_time + vo_end_off,
+                        "text": vo["text"],
+                    })
                 for dlg in aud.get("dialogue", []):
                     if dlg.get("text"):
-                        dlg_start = cumulative_time + float(dlg.get("startOffsetSec", 0.0))
-                        dlg_end = cumulative_time + float(dlg.get("endOffsetSec", dlg_start + 2.0))
+                        start_off = float(dlg.get("startOffsetSec", 0.0))
+                        end_off = float(dlg.get("endOffsetSec", start_off + 2.0))
                         dialogue_events.append({
-                            "start": dlg_start,
-                            "end": dlg_end,
+                            "start": cumulative_time + start_off,
+                            "end": cumulative_time + end_off,
                             "text": dlg["text"],
                         })
                 cumulative_time += duration

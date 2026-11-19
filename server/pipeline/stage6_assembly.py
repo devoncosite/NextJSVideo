@@ -57,7 +57,7 @@ async def assemble_timeline_pipeline(
             audio_files: List[Path] = []
             dialogue_events: List[Dict[str, Any]] = []
 
-            # 1. Download Scene Videos and collect dialogue for subtitles
+            # 1. Download Scene Videos, Scene Audio, and collect dialogue/VO for subtitles
             cumulative_time = 0.0
             for idx, scene in enumerate(scenes):
                 vid = scene.get("video", {})
@@ -71,18 +71,42 @@ async def assemble_timeline_pipeline(
                     await storage.download_asset_to_file(vid_url, v_file)
                     video_files.append(v_file)
 
-                # Collect dialogue for subtitles with cumulative time
+                    aud_url = aud.get("mergedSceneAudioUrl")
+                    if aud_url:
+                        a_file = tmp_path / f"scene_{idx:02d}_audio.m4a"
+                        await storage.download_asset_to_file(aud_url, a_file)
+                        audio_files.append(a_file)
+
+                    # Collect voiceover for subtitles if enabled
+                    vo = aud.get("voiceover", {})
+                    if vo and vo.get("enabled") and vo.get("text"):
+                        vo_start_off = float(vo.get("startOffsetSec", 0.0))
+                        vo_end_off = float(vo.get("endOffsetSec", vo_start_off + 2.5))
+                        dialogue_events.append({
+                            "start": cumulative_time + vo_start_off,
+                            "end": cumulative_time + vo_end_off,
+                            "text": vo["text"],
+                        })
+
+                    # Collect dialogue for subtitles with cumulative time
                     for dlg in aud.get("dialogue", []):
                         if dlg.get("text"):
-                            dlg_start = cumulative_time + float(dlg.get("startOffsetSec", 0.0))
-                            dlg_end = cumulative_time + float(dlg.get("endOffsetSec", dlg_start + 2.0))
+                            start_off = float(dlg.get("startOffsetSec", 0.0))
+                            end_off = float(dlg.get("endOffsetSec", start_off + 2.0))
                             dialogue_events.append({
-                                "start": dlg_start,
-                                "end": dlg_end,
+                                "start": cumulative_time + start_off,
+                                "end": cumulative_time + end_off,
                                 "text": dlg["text"],
                             })
 
                     cumulative_time += duration
+
+            # Download background music if configured
+            bgm_file: Optional[Path] = None
+            bgm_url = assembly_cfg.get("backgroundMusicUrl")
+            if bgm_url:
+                bgm_file = tmp_path / "bgm.m4a"
+                await storage.download_asset_to_file(bgm_url, bgm_file)
 
             # 2. Generate .ass subtitle file
             sub_file = tmp_path / "subtitles.ass"
@@ -94,6 +118,7 @@ async def assemble_timeline_pipeline(
                 scene_video_files=video_files,
                 scene_audio_files=audio_files,
                 output_path=master_output,
+                background_music_file=bgm_file,
                 subtitle_file=sub_file,
                 burn_captions=burn_captions,
             )

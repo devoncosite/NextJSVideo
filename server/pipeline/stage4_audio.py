@@ -65,7 +65,9 @@ async def generate_audio_batch(
                 )
 
             try:
+                from server.core.patch_engine import create_replace_patch
                 tracks_to_mix: List[AudioTrackInput] = []
+                stem_patches: List[Dict[str, Any]] = []
 
                 with tempfile.TemporaryDirectory(prefix="audio_mix_") as tmp_dir:
                     tmp_path = Path(tmp_dir)
@@ -80,6 +82,10 @@ async def generate_audio_batch(
                             speaker_id="narrator",
                             voice_id=vo_cfg.get("voiceId"),
                         )
+                        stem_patches.extend([
+                            create_replace_patch(f"{base_path}/voiceover/assetUrl", vo_res.audio_url),
+                            create_replace_patch(f"{base_path}/voiceover/status", "completed"),
+                        ])
                         # Download VO audio locally for mixing
                         vo_file = tmp_path / "vo.m4a"
                         await storage.download_asset_to_file(vo_res.audio_url, vo_file)
@@ -103,6 +109,10 @@ async def generate_audio_batch(
                                 speaker_id=dlg.get("speakerId", "char_01"),
                                 voice_id=dlg.get("voiceId"),
                             )
+                            stem_patches.extend([
+                                create_replace_patch(f"{base_path}/dialogue/{d_idx}/assetUrl", dlg_res.audio_url),
+                                create_replace_patch(f"{base_path}/dialogue/{d_idx}/status", "completed"),
+                            ])
                             dlg_file = tmp_path / f"dlg_{d_idx}.m4a"
                             await storage.download_asset_to_file(dlg_res.audio_url, dlg_file)
 
@@ -131,8 +141,7 @@ async def generate_audio_batch(
                     )
 
                 # 5. Update manifest node
-                from server.core.patch_engine import create_replace_patch
-                patches = [
+                patches = stem_patches + [
                     create_replace_patch(f"{base_path}/status", "completed"),
                     create_replace_patch(f"{base_path}/mergedSceneAudioUrl", persist_res.public_url),
                 ]

@@ -15,9 +15,10 @@ export function useProjectSocket({ projectId, enabled = true }: UseProjectSocket
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const reconnectAttemptsRef = useRef(0);
   const pingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const isUnmountedRef = useRef(false);
 
   const connect = useCallback(() => {
-    if (!enabled || !projectId || typeof window === 'undefined') return;
+    if (!enabled || !projectId || typeof window === 'undefined' || isUnmountedRef.current) return;
 
     // Clear any pending reconnect
     if (reconnectTimeoutRef.current) {
@@ -36,6 +37,10 @@ export function useProjectSocket({ projectId, enabled = true }: UseProjectSocket
       wsRef.current = ws;
 
       ws.onopen = () => {
+        if (isUnmountedRef.current) {
+          ws.close();
+          return;
+        }
         setConnectionState('connected');
         reconnectAttemptsRef.current = 0;
 
@@ -48,6 +53,7 @@ export function useProjectSocket({ projectId, enabled = true }: UseProjectSocket
       };
 
       ws.onmessage = (event) => {
+        if (isUnmountedRef.current) return;
         try {
           const data = JSON.parse(event.data);
           if (data.type === 'patch') {
@@ -70,8 +76,10 @@ export function useProjectSocket({ projectId, enabled = true }: UseProjectSocket
       };
 
       ws.onclose = () => {
-        setConnectionState('disconnected');
         if (pingIntervalRef.current) clearInterval(pingIntervalRef.current);
+        if (isUnmountedRef.current) return;
+
+        setConnectionState('disconnected');
 
         // Exponential backoff reconnect
         const attempt = reconnectAttemptsRef.current;
@@ -79,25 +87,33 @@ export function useProjectSocket({ projectId, enabled = true }: UseProjectSocket
         reconnectAttemptsRef.current += 1;
 
         reconnectTimeoutRef.current = setTimeout(() => {
-          connect();
+          if (!isUnmountedRef.current) {
+            connect();
+          }
         }, delay);
       };
 
       ws.onerror = (err) => {
         console.warn('Project WebSocket error:', err);
-        setConnectionState('error');
+        if (!isUnmountedRef.current) {
+          setConnectionState('error');
+        }
         ws.close();
       };
     } catch (err) {
       console.error('WebSocket connection instantiation error:', err);
-      setConnectionState('error');
+      if (!isUnmountedRef.current) {
+        setConnectionState('error');
+      }
     }
   }, [projectId, enabled, applyPatchDelta, fetchManifest, setConnectionState]);
 
   useEffect(() => {
+    isUnmountedRef.current = false;
     connect();
 
     return () => {
+      isUnmountedRef.current = true;
       if (pingIntervalRef.current) clearInterval(pingIntervalRef.current);
       if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
       if (wsRef.current) {

@@ -37,7 +37,6 @@ COPY --from=builder /usr/local/bin /usr/local/bin
 
 COPY server/ ./server/
 COPY workers/ ./workers/
-COPY alembic/ ./alembic/
 COPY pyproject.toml ./
 
 USER appuser

@@ -51,6 +51,7 @@ def upgrade() -> None:
             nullable=False,
         ),
         sa.Column("title", sa.String(length=255), nullable=False),
+        sa.Column("description", sa.String(length=1024), nullable=True),
         sa.Column("format", sa.String(length=64), nullable=False),
         sa.Column("version", sa.Integer(), nullable=False, server_default="1"),
         sa.Column(

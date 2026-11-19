@@ -83,7 +83,7 @@ services:
       S3_ACCESS_KEY: ${S3_ACCESS_KEY:-minioadmin}
       S3_SECRET_KEY: ${S3_SECRET_KEY:-minioadmin_secret}
       S3_BUCKET_NAME: ${S3_BUCKET_NAME:-studio-assets}
-      JWT_SECRET: ${JWT_SECRET:-supersecretjwtkey_min_32_characters_long_12345}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-supersecretjwtkey_min_32_characters_long_12345}
       ENVIRONMENT: production
     depends_on:
       postgres:

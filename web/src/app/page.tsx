@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import Link from 'next/link';
 import { Database, Film, Sparkles, FolderArchive, Layers, Plus } from 'lucide-react';
 import { ContextShelf } from '@/components/context/ContextShelf';
 import { UploadDropzone } from '@/components/context/UploadDropzone';
@@ -94,41 +95,53 @@ export default function StudioPage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
+            <Link
+              href={`/studio/${projectId}/stage-1-planner`}
+              className="rounded-xl border border-slate-800 bg-slate-900/60 p-4 hover:border-indigo-500/60 transition-colors block"
+            >
               <div className="flex items-center justify-between text-xs text-slate-400">
                 <span>Stage 1</span>
                 <span className="rounded-full bg-slate-800 px-2 py-0.5 text-[10px]">Ready</span>
               </div>
               <h4 className="mt-2 text-sm font-semibold text-white">Planner Section</h4>
               <p className="mt-1 text-xs text-slate-400">Context-aware structured generation</p>
-            </div>
+            </Link>
 
-            <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
+            <Link
+              href={`/studio/${projectId}/stage-2-consistencies`}
+              className="rounded-xl border border-slate-800 bg-slate-900/60 p-4 hover:border-indigo-500/60 transition-colors block"
+            >
               <div className="flex items-center justify-between text-xs text-slate-400">
                 <span>Stage 2</span>
                 <span className="rounded-full bg-slate-800 px-2 py-0.5 text-[10px]">Ready</span>
               </div>
               <h4 className="mt-2 text-sm font-semibold text-white">Characters & 360°</h4>
               <p className="mt-1 text-xs text-slate-400">Consistent turnaround sheets</p>
-            </div>
+            </Link>
 
-            <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
+            <Link
+              href={`/studio/${projectId}/stage-3-keyframes`}
+              className="rounded-xl border border-slate-800 bg-slate-900/60 p-4 hover:border-indigo-500/60 transition-colors block"
+            >
               <div className="flex items-center justify-between text-xs text-slate-400">
                 <span>Stage 3</span>
                 <span className="rounded-full bg-slate-800 px-2 py-0.5 text-[10px]">Ready</span>
               </div>
               <h4 className="mt-2 text-sm font-semibold text-white">Keyframes</h4>
               <p className="mt-1 text-xs text-slate-400">Reference-injected anchor frames</p>
-            </div>
+            </Link>
 
-            <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
+            <Link
+              href={`/studio/${projectId}`}
+              className="rounded-xl border border-slate-800 bg-slate-900/60 p-4 hover:border-indigo-500/60 transition-colors block"
+            >
               <div className="flex items-center justify-between text-xs text-slate-400">
                 <span>Stage 4-7</span>
                 <span className="rounded-full bg-slate-800 px-2 py-0.5 text-[10px]">Queued</span>
               </div>
               <h4 className="mt-2 text-sm font-semibold text-white">Audio & Assembly</h4>
               <p className="mt-1 text-xs text-slate-400">FFmpeg 7 sync & Loudnorm</p>
-            </div>
+            </Link>
           </div>
         </section>
       </div>

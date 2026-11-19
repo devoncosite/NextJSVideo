@@ -19,9 +19,16 @@ export function useProjectWebSocket({
   const [lastPatches, setLastPatches] = useState<PatchOperation[]>([]);
   const wsRef = useRef<WebSocket | null>(null);
   const pingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isUnmountedRef = useRef(false);
 
   const connect = useCallback(() => {
-    if (!enabled || !projectId) return;
+    if (!enabled || !projectId || typeof window === 'undefined' || isUnmountedRef.current) return;
+
+    if (reconnectTimeoutRef.current) {
+      clearTimeout(reconnectTimeoutRef.current);
+      reconnectTimeoutRef.current = null;
+    }
 
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const host = window.location.host;
@@ -32,6 +39,10 @@ export function useProjectWebSocket({
     wsRef.current = ws;
 
     ws.onopen = () => {
+      if (isUnmountedRef.current) {
+        ws.close();
+        return;
+      }
       setIsConnected(true);
       // Start ping heartbeat every 25 seconds
       pingIntervalRef.current = setInterval(() => {
@@ -42,6 +53,7 @@ export function useProjectWebSocket({
     };
 
     ws.onmessage = (event) => {
+      if (isUnmountedRef.current) return;
       try {
         const data = JSON.parse(event.data);
         if (data.type === 'patch') {
@@ -58,10 +70,15 @@ export function useProjectWebSocket({
     };
 
     ws.onclose = () => {
-      setIsConnected(false);
       if (pingIntervalRef.current) clearInterval(pingIntervalRef.current);
+      if (isUnmountedRef.current) return;
+      setIsConnected(false);
       // Auto-reconnect after 3 seconds
-      setTimeout(connect, 3000);
+      reconnectTimeoutRef.current = setTimeout(() => {
+        if (!isUnmountedRef.current) {
+          connect();
+        }
+      }, 3000);
     };
 
     ws.onerror = (err) => {
@@ -71,9 +88,12 @@ export function useProjectWebSocket({
   }, [projectId, enabled, onPatchReceived]);
 
   useEffect(() => {
+    isUnmountedRef.current = false;
     connect();
     return () => {
+      isUnmountedRef.current = true;
       if (pingIntervalRef.current) clearInterval(pingIntervalRef.current);
+      if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
       if (wsRef.current) {
         wsRef.current.close();
       }

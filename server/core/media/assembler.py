@@ -212,10 +212,44 @@ class TimelineAssembler:
             subprocess.run(cmd_empty, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
             return output_path
 
-        # 1. Create Concat Demuxer text file for video clips
+        # 1. Normalize/Mux each scene video clip with its corresponding scene audio track if available
+        muxed_clips: List[Path] = []
+        for idx, v_path in enumerate(scene_video_files):
+            if idx < len(scene_audio_files) and scene_audio_files[idx].exists():
+                a_path = scene_audio_files[idx]
+                norm_clip = temp_dir / f"norm_scene_{idx:02d}.mp4"
+                cmd_mux = [
+                    self.ffmpeg_bin,
+                    "-y",
+                    "-i",
+                    str(v_path),
+                    "-i",
+                    str(a_path),
+                    "-map",
+                    "0:v:0",
+                    "-map",
+                    "1:a:0",
+                    "-c:v",
+                    "copy",
+                    "-c:a",
+                    "aac",
+                    "-b:a",
+                    "192k",
+                    "-shortest",
+                    str(norm_clip),
+                ]
+                try:
+                    subprocess.run(cmd_mux, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
+                    muxed_clips.append(norm_clip)
+                except subprocess.CalledProcessError:
+                    muxed_clips.append(v_path)
+            else:
+                muxed_clips.append(v_path)
+
+        # 2. Create Concat Demuxer text file for video clips
         concat_list_file = temp_dir / "concat_list.txt"
         with concat_list_file.open("w", encoding="utf-8") as f:
-            for v_path in scene_video_files:
+            for v_path in muxed_clips:
                 f.write(f"file '{v_path.resolve()}'\n")
 
         cmd = [
@@ -229,9 +263,21 @@ class TimelineAssembler:
             str(concat_list_file),
         ]
 
+        has_bgm = bool(background_music_file and background_music_file.exists())
+        if has_bgm and background_music_file:
+            cmd.extend(["-i", str(background_music_file)])
+
         filter_parts: List[str] = []
         video_out = "0:v"
         audio_out = "0:a"
+
+        # Background music mixing / sidechain ducking
+        if has_bgm:
+            filter_parts.append(
+                "[1:a]aloop=loop=-1:size=2e+09,volume=0.25[bgm];"
+                "[0:a][bgm]amix=inputs=2:duration=first:normalize=0[a_mixed]"
+            )
+            audio_out = "[a_mixed]"
 
         # Subtitle burning
         if burn_captions and subtitle_file and subtitle_file.exists():
@@ -240,7 +286,8 @@ class TimelineAssembler:
 
         if filter_parts:
             cmd.extend(["-filter_complex", ";".join(filter_parts)])
-            cmd.extend(["-map", f"[{video_out}]", "-map", audio_out])
+            v_map = f"[{video_out}]" if not video_out.startswith("0:") else video_out
+            cmd.extend(["-map", v_map, "-map", audio_out])
         else:
             cmd.extend(["-map", video_out, "-map", audio_out])
 

@@ -35,12 +35,14 @@ export function WaveformTrack({
 
   useEffect(() => {
     let wsInstance: any = null;
+    let isCancelled = false;
 
     async function initWaveSurfer() {
       if (!containerRef.current || !audioUrl) return;
 
       try {
         const WaveSurferModule = await import('wavesurfer.js');
+        if (isCancelled || !containerRef.current) return;
         const WaveSurfer = WaveSurferModule.default || WaveSurferModule;
 
         if (wavesurferRef.current) {
@@ -73,9 +75,11 @@ export function WaveformTrack({
     initWaveSurfer();
 
     return () => {
+      isCancelled = true;
       if (wsInstance) {
         wsInstance.destroy();
       }
+      wavesurferRef.current = null;
     };
   }, [audioUrl, waveColor, progressColor]);
 

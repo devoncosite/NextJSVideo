@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import mimetypes
+import tempfile
 import uuid
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -26,11 +27,6 @@ from server.models.user import User
 router = APIRouter(prefix="/api/v1", tags=["context"])
 
 DEFAULT_USER_ID = uuid.UUID("00000000-0000-0000-0000-000000000001")
-
-
-def get_storage_service() -> StorageService:
-    """FastAPI dependency providing configured StorageService instance."""
-    return StorageService()
 
 
 async def ensure_default_user_exists(db: AsyncSession) -> User:
@@ -69,10 +65,28 @@ async def get_or_create_project(project_id: str, db: AsyncSession) -> Project:
                 "aspectRatio": "16:9",
                 "resolution": "1080p",
                 "visualStylePrompt": "Cinematic 35mm film",
+                "colorGradingPreset": "cinematic_teal_orange",
             },
             "consistencies": {"characters": [], "objects": []},
             "scenes": [],
-            "assembly": {"status": "idle", "burnCaptions": True},
+            "outroEndFrame": {
+                "prompt": "Closing cinematic logo and fade to black",
+                "status": "idle",
+                "variants": [],
+            },
+            "assembly": {
+                "transitionType": "cut",
+                "transitionDurationSec": 0.5,
+                "burnCaptions": True,
+                "subtitleStyle": "subtitles_classic",
+                "thumbnail": {
+                    "prompt": f"Dramatic movie poster thumbnail for Project {project_id}",
+                    "status": "idle",
+                    "variants": [],
+                },
+                "status": "idle",
+                "progressPercent": 0,
+            },
         }
         project = Project(
             id=project_id,
